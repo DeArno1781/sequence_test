@@ -4,7 +4,71 @@ import random
 import time
 
 # ==========================================
-# 1. Number Series Functions
+# 1. ฟังก์ชันตัวช่วยสร้าง HTML นาฬิกาจับเวลาพร้อมปุ่มควบคุม
+# ==========================================
+def render_timer(duration_sec, timer_id, auto_start=True):
+    auto_js = "startTimer();" if auto_start else ""
+    return f"""
+    <div style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef;">
+        <div id="t_display" style="font-size: 2.5rem; font-weight: bold; color: #1f77b4; margin-bottom: 15px; font-family: monospace;">
+            {duration_sec} วินาที
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="startTimer()" style="padding: 8px 15px; border: none; border-radius: 5px; background: #28a745; color: white; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">▶ เริ่ม (Start)</button>
+            <button onclick="pauseTimer()" style="padding: 8px 15px; border: none; border-radius: 5px; background: #dc3545; color: white; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">⏸ หยุด (Pause)</button>
+            <button onclick="resetTimer()" style="padding: 8px 15px; border: none; border-radius: 5px; background: #6c757d; color: white; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔄 รีเซ็ต (Reset)</button>
+        </div>
+    </div>
+    <script>
+        var duration = {duration_sec};
+        var timeLeft = duration;
+        var timerId = null;
+        var display = document.getElementById("t_display");
+
+        function updateDisplay() {{
+            if (timeLeft <= 0) {{
+                display.innerHTML = "⏰ หมดเวลา!";
+                display.style.color = "#dc3545"; // แดง
+            }} else {{
+                display.innerHTML = timeLeft + " วินาที";
+                if (timeLeft <= 5) {{
+                    display.style.color = "#ffc107"; // ส้ม
+                }} else {{
+                    display.style.color = "#1f77b4"; // ฟ้า
+                }}
+            }}
+        }}
+
+        function startTimer() {{
+            if (timerId !== null) return; // ทำงานอยู่แล้ว
+            if (timeLeft <= 0) return; // หมดเวลาไปแล้ว
+            timerId = setInterval(function() {{
+                timeLeft--;
+                updateDisplay();
+                if (timeLeft <= 0) clearInterval(timerId);
+            }}, 1000);
+        }}
+
+        function pauseTimer() {{
+            if (timerId !== null) {{
+                clearInterval(timerId);
+                timerId = null;
+            }}
+        }}
+
+        function resetTimer() {{
+            pauseTimer();
+            timeLeft = duration;
+            updateDisplay();
+        }}
+
+        // เริ่มอัตโนมัติเมื่อโหลดคอมโพเนนต์เสร็จ
+        {auto_js}
+    </script>
+    """
+
+# ==========================================
+# 2. ฟังก์ชันสุ่มโจทย์ Number Series
 # ==========================================
 def gen_arithmetic():
     start = random.randint(5, 50)
@@ -130,7 +194,7 @@ def gen_power_differences():
     return seq, ans, f"Power Differences (ระยะห่างเป็นเลข{diff_str}):\nส่วนต่างคือ {base_start}^{power}, {base_start+1}^{power}, {base_start+2}^{power}...\nถัดไปคือ {seq[-1]} + {(base_start+4)**power} = {ans}"
 
 # ==========================================
-# 2. App Initialization & State
+# 3. Setup & State Initialization
 # ==========================================
 st.set_page_config(page_title="Aptitude Test Gym", layout="wide")
 
@@ -154,23 +218,22 @@ def get_new_ns_question():
     seq, ans, logic = random.choice(funcs)()
     st.session_state.update({
         'ns_seq': seq, 'ns_ans': ans, 'ns_logic': logic,
-        'ns_show_ans': False, 'ns_feedback': None, 'timer_id': str(time.time())
+        'ns_show_ans': False, 'ns_feedback': None, 'timer_id_ns': str(time.time())
     })
 
 SYMBOLS = ['♒', '😃', '✌', '♌', '✈', '⌘', '◆', '💀', '⬤']
 def init_symbol_test():
     st.session_state.update({
         'sym_map': {sym: random.randint(3, 25) for sym in SYMBOLS},
-        'sym_seq': [random.choice(SYMBOLS) for _ in range(16)], # อัปเดตเป็น 16 ข้อ
-        'sym_submitted': False, 'timer_id': str(time.time())
+        'sym_seq': [random.choice(SYMBOLS) for _ in range(16)],
+        'sym_submitted': False, 'timer_id_sym': str(time.time())
     })
 
-# Initialize first questions
 if 'ns_seq' not in st.session_state: get_new_ns_question()
 if 'sym_seq' not in st.session_state: init_symbol_test()
 
 # ==========================================
-# 3. Sidebar (Navigation & Stats)
+# 4. Sidebar (Menu & Stats)
 # ==========================================
 with st.sidebar:
     st.title("🎯 เมนูฝึกซ้อม")
@@ -193,39 +256,39 @@ with st.sidebar:
         c1, c2 = st.columns(2)
         c1.metric("คะแนน (ข้อ)", st.session_state.sym_score)
         c2.metric("ทำไปแล้ว (รอบ)", st.session_state.sym_attempts)
-        # อัปเดตตัวคูณคะแนนเป็น 16 ข้อต่อรอบ
         acc = (st.session_state.sym_score / max(1, st.session_state.sym_attempts*16)) * 100
         st.metric("ความแม่นยำรวม", f"{acc:.1f}%")
         if st.button("🗑️ รีเซ็ตสถิติสัญลักษณ์", use_container_width=True):
             st.session_state.sym_score = 0; st.session_state.sym_attempts = 0; st.rerun()
 
 # ==========================================
-# 4. Main App Logic
+# 5. Main App Logic (Number Series)
 # ==========================================
 if st.session_state.app_mode == "🔢 Number Series":
     st.title("🧠 Number Series Gym")
     
-    c_diff, c_time = st.columns([2, 1])
-    with c_diff:
-        new_diff = st.radio("ความยาก:", ["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)"], horizontal=True, index=["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)"].index(st.session_state.ns_diff))
-        if new_diff != st.session_state.ns_diff:
-            st.session_state.ns_diff = new_diff
-            get_new_ns_question(); st.rerun()
-    with c_time:
-        st.write(""); use_timer = st.toggle("⏱️ จับเวลา 30 วิ", value=True)
+    # ควบคุมความยาก
+    new_diff = st.radio("ความยาก:", ["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)"], horizontal=True, index=["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)"].index(st.session_state.ns_diff))
+    if new_diff != st.session_state.ns_diff:
+        st.session_state.ns_diff = new_diff
+        get_new_ns_question()
+        st.rerun()
 
     st.divider()
-    st.header(f"Sequence: {', '.join(map(str, st.session_state.ns_seq))}, ?")
+    
+    # แสดงโจทย์และนาฬิกาควบคู่กัน
+    col_q, col_timer = st.columns([2, 1])
+    with col_q:
+        st.header(f"Sequence: {', '.join(map(str, st.session_state.ns_seq))}, ?")
+        st.write("")
+        st.button("🔄 สุ่มโจทย์ใหม่และเริ่มเวลา", on_click=get_new_ns_question, type="primary")
+        
+    with col_timer:
+        # ฝังนาฬิกาที่มีปุ่มควบคุมของตัวเอง (ตั้งเวลา 30 วินาที)
+        html_code = render_timer(30, st.session_state.timer_id_ns, auto_start=True)
+        components.html(html_code, height=140)
 
-    if use_timer:
-        components.html(f"""
-        <div id="t_{st.session_state.timer_id}" style="font-size: 2rem; font-family: monospace; font-weight:bold; color:#1f77b4;">30 วินาที</div>
-        <script>
-            var t=30, e=document.getElementById("t_{st.session_state.timer_id}");
-            var id=setInterval(function(){{t--; if(t<=0){{clearInterval(id); e.innerHTML="⏰ หมดเวลา!"; e.style.color="red";}}else{{e.innerHTML=t+" วินาที"; if(t<=5)e.style.color="orange";}}}}, 1000);
-        </script>
-        """, height=50)
-
+    # ช่องตอบคำถาม
     with st.form("ns_form", clear_on_submit=True):
         guess = st.text_input("พิมพ์คำตอบ:", placeholder="พิมพ์ตัวเลขแล้วกด Enter...")
         if st.form_submit_button("ส่งคำตอบ ⏎"):
@@ -238,31 +301,31 @@ if st.session_state.app_mode == "🔢 Number Series":
                         st.session_state.ns_feedback = "correct"
                     else:
                         st.session_state.ns_feedback = "incorrect"
-                except: st.error("ตัวเลขเท่านั้นครับ")
+                except: 
+                    st.error("ใส่เฉพาะตัวเลขเท่านั้นครับ")
 
     if st.session_state.ns_feedback == "correct":
         st.success("✅ ถูกต้อง! บวกคะแนนแล้ว")
-        if st.button("ข้อต่อไป ⏭️", type="primary"): get_new_ns_question(); st.rerun()
     elif st.session_state.ns_feedback == "incorrect":
-        st.error("❌ ยังไม่ถูก ลองอีกที")
+        st.error("❌ ยังไม่ถูก ลองคิดอีกที")
 
     c1, c2 = st.columns(2)
     with c1: 
-        if st.button("🔄 ข้ามข้อนี้", use_container_width=True): get_new_ns_question(); st.rerun()
-    with c2: 
-        if st.button("💡 ดูเฉลย", use_container_width=True): st.session_state.ns_show_ans = True
+        if st.button("💡 ดูเฉลย", use_container_width=True): 
+            st.session_state.ns_show_ans = True
         
     if st.session_state.ns_show_ans:
         st.info(f"**ตอบ: {st.session_state.ns_ans}**\n\n**แนวคิด:**\n{st.session_state.ns_logic}")
 
 
+# ==========================================
+# 6. Main App Logic (Symbol Addition)
+# ==========================================
 elif st.session_state.app_mode == "🔣 Symbol Addition":
     st.title("🔣 Continuous Addition")
     st.write("โจทย์รอบละ 16 ข้อ ให้เวลาบวกเพียง **30 วินาที** (พิมพ์เสร็จกด Tab เลื่อนช่องได้เลย กล่องจะเลื่อนลงอัตโนมัติ)")
     
-    # -----------------------------------------------------
-    # 1. แสดงตารางสัญลักษณ์ (อยู่กับที่ ไม่โดนเลื่อน)
-    # -----------------------------------------------------
+    # แสดงค่าสัญลักษณ์
     st.markdown("### 🔑 ค่าสัญลักษณ์")
     cols = st.columns(len(SYMBOLS))
     for i, sym in enumerate(SYMBOLS):
@@ -270,67 +333,38 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
     
     st.divider()
 
-    # -----------------------------------------------------
-    # 2. ปุ่มควบคุม และ นาฬิกาจับเวลา (ใช้ components.html ที่เสถียรที่สุด)
-    # -----------------------------------------------------
-    c_btn, c_timer = st.columns([2, 1])
-    with c_btn:
-        st.button("🔄 สุ่มโจทย์ใหม่และเริ่มจับเวลา", on_click=init_symbol_test, type="primary", use_container_width=True)
+    col_btn, col_timer = st.columns([1, 1])
+    with col_btn:
+        st.write("")
+        st.write("")
+        st.button("🔄 สุ่มโจทย์ใหม่และเริ่มเวลา", on_click=init_symbol_test, type="primary", use_container_width=True)
         
-    with c_timer:
-        # โค้ด HTML/JS แบบมาตรฐาน ทำงานอิสระ ไม่โดนบล็อก
-        timer_html = f"""
-        <div id="timer_display" style="font-size: 2rem; font-family: monospace; font-weight: bold; color: #1f77b4; text-align: right;">
-            30 วินาที
-        </div>
-        <script>
-            var t = 30;
-            var elem = document.getElementById("timer_display");
-            var timerId = setInterval(function() {{
-                t--;
-                if(t <= 0) {{
-                    clearInterval(timerId);
-                    elem.innerHTML = "⏰ หมดเวลา!";
-                    elem.style.color = "red";
-                }} else {{
-                    elem.innerHTML = t + " วินาที";
-                    if(t <= 5) elem.style.color = "orange";
-                }}
-            }}, 1000);
-        </script>
-        """
-        components.html(timer_html, height=50)
+    with col_timer:
+        # ฝังนาฬิกาที่มีปุ่มควบคุมของตัวเอง (ตั้งเวลา 30 วินาที)
+        html_code = render_timer(30, st.session_state.timer_id_sym, auto_start=True)
+        components.html(html_code, height=140)
 
-    # -----------------------------------------------------
-    # 3. กล่องโจทย์แบบ "Scrollable" (เลื่อนเฉพาะในกล่องนี้)
-    # -----------------------------------------------------
-    # สร้างกล่องจำกัดความสูงที่ 400px (คุณเลื่อนในนี้ได้โดยที่สัญลักษณ์ข้างบนไม่ขยับ)
+    # กล่องโจทย์แบบ Scrollable Height=400 (เลื่อนช่องได้โดยตารางอ้างอิงและนาฬิกาไม่ขยับ)
     with st.container(height=400):
         with st.form("sym_form", clear_on_submit=False):
             user_inputs = []
             for i, sym in enumerate(st.session_state.sym_seq):
                 r1, r2 = st.columns([1, 5])
                 r1.markdown(f"<div style='font-size:28px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
-                
-                # ทริค: ใส่ st.session_state.timer_id ไว้ใน key เพื่อบีบให้ช่องกรอกล้างค่าใหม่หมดตอนกด "สุ่มโจทย์ใหม่"
-                ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id}_{i}", label_visibility="collapsed")
+                ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id_sym}_{i}", label_visibility="collapsed")
                 user_inputs.append(ans)
                 
-            # ปุ่มส่งอยู่ล่างสุดของกล่อง พอแท็บถึงช่องสุดท้ายแล้วกดแท็บอีกทีจะมาตกที่ปุ่มนี้ แล้วกด Enter ส่งได้เลย
             if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
                 st.session_state.sym_submitted = True
                 st.session_state.user_inputs = user_inputs
                 st.session_state.sym_attempts += 1 
 
-    # -----------------------------------------------------
-    # 4. ระบบตรวจคำตอบ
-    # -----------------------------------------------------
+    # ระบบตรวจคำตอบ
     if st.session_state.sym_submitted:
         st.header("📊 ตรวจคำตอบ")
         run_sum = 0
         round_score = 0
         
-        # หัวตารางเฉลย
         r1, r2, r3, r4 = st.columns([1, 2, 2, 2])
         r1.write("**สัญลักษณ์**")
         r2.write("**ค่าของมัน**")
@@ -350,12 +384,10 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
             c1.write(f"### {sym}")
             c2.write(f"+ {val}")
-            
             if is_correct: 
                 c3.success(f"{ans} {icon}")
             else: 
                 c3.error(f"{ans if ans else '-'} {icon}")
-                
             c4.info(str(run_sum))
             
         st.session_state.sym_score += round_score
