@@ -239,7 +239,7 @@ def get_new_ns_question():
 
 # 🔥 ปรับแก้สัญลักษณ์ให้เป็น Classic Simple Text
 # \uFE0E คือ Variation Selector ที่บังคับให้เบราว์เซอร์แสดงผลเป็น Text ธรรมดา (ไม่เป็น Emoji สีๆ)
-SYMBOLS = ['♒', '☺\uFE0E', '✌\uFE0E', '♌', '✈\uFE0E', '⌘', '◆', '☠\uFE0E', '⬤']
+SYMBOLS = ['★', '☺\uFE0E', '✌\uFE0E', '▲', '✈\uFE0E', '⌘', '◆', '☠\uFE0E', '⬤']
 
 def init_symbol_test():
     st.session_state.update({
