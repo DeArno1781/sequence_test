@@ -4,10 +4,21 @@ import random
 import time
 
 # ==========================================
-# 1. ฟังก์ชันนาฬิกาจับเวลา (HTML/JS อิสระ ไม่กระตุก)
+# 1. ฟังก์ชันนาฬิกาจับเวลา (อิสระ ไม่กระตุก + Auto Submit)
 # ==========================================
-def render_timer(duration_sec, timer_id, auto_start=True):
+def render_timer(duration_sec, timer_id, auto_start=True, is_sym_mode=False):
     auto_js = "startTimer();" if auto_start else ""
+    
+    # สคริปต์ให้กระโดดข้าม iframe ไปสั่งกดปุ่ม "ส่งคำตอบเพื่อตรวจ" บนหน้าเว็บหลักของ Streamlit
+    submit_js = """
+        var btns = window.parent.document.querySelectorAll('button');
+        btns.forEach(function(btn) {
+            if(btn.innerText.includes('ส่งคำตอบเพื่อตรวจ')) {
+                btn.click();
+            }
+        });
+    """ if is_sym_mode else ""
+
     return f"""
     <div style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
         <div id="t_display" style="font-size: 1.8rem; font-weight: bold; color: #1f77b4; margin-bottom: 5px; font-family: monospace;">
@@ -29,9 +40,11 @@ def render_timer(duration_sec, timer_id, auto_start=True):
             if (timeLeft <= 0) {{
                 display.innerHTML = "⏰ หมดเวลา!";
                 display.style.color = "#dc3545"; 
+                {submit_js} // <--- โค้ดบังคับส่งคำตอบจะทำงานตรงนี้
             }} else {{
                 display.innerHTML = timeLeft + " วินาที";
-                if (timeLeft <= 5) display.style.color = "#ffc107"; 
+                if (timeLeft <= 5) display.style.color = "#dc3545"; // เปลี่ยนเป็นสีแดงเตือนตอน 5 วิสุดท้าย
+                else if (timeLeft <= 10) display.style.color = "#ffc107"; // สีส้มเตือนตอน 10 วิ
                 else display.style.color = "#1f77b4"; 
             }}
         }}
@@ -194,7 +207,7 @@ if 'ns_score' not in st.session_state:
     st.session_state.update({
         'ns_score': 0, 
         'ns_attempts': 0, 
-        'ns_diff': 'สุ่มรวมทุกระดับ (Mixed)', # ค่า Default เริ่มต้น
+        'ns_diff': 'สุ่มรวมทุกระดับ (Mixed)', 
         'sym_score': 0, 
         'sym_attempts': 0, 
         'app_mode': '🔢 Number Series'
@@ -203,12 +216,10 @@ if 'ns_score' not in st.session_state:
 def get_new_ns_question():
     level = st.session_state.ns_diff
     
-    # แบ่งกลุ่มฟังก์ชันความยากให้ชัดเจน
     funcs_easy = [gen_arithmetic, gen_geometric]
     funcs_med = [gen_interleaved, gen_exponential_basic]
     funcs_hard = [gen_mixed_operations, gen_prime_addition, gen_fractional_multiplier, gen_digit_sum, gen_fibonacci_variant, gen_multiply_and_modify, gen_power_differences]
     
-    # ลอจิกการเลือกระดับโจทย์ (รวมข้อตามที่คุณต้องการ)
     if level == "ง่าย (Easy)": 
         funcs = funcs_easy
     elif level == "ปานกลาง (Medium)": 
@@ -216,19 +227,20 @@ def get_new_ns_question():
     elif level == "ยาก (Hard)": 
         funcs = funcs_hard
     else: 
-        # สุ่มรวมทุกระดับ (Mixed) - นำโจทย์ทั้ง 11 แบบมารวมกัน
         funcs = funcs_easy + funcs_med + funcs_hard
     
     seq, ans, logic = random.choice(funcs)()
     
-    # อัปเดต state พร้อมรีเซ็ตเวลาใหม่ทุกครั้งที่สุ่ม
     st.session_state.update({
         'ns_seq': seq, 'ns_ans': ans, 'ns_logic': logic, 
         'ns_show_ans': False, 'ns_feedback': None, 
         'timer_id_ns': str(time.time())
     })
 
-SYMBOLS = ['♒', '😃', '✌', '♌', '✈', '⌘', '◆', '💀', '⬤']
+# 🔥 ปรับแก้สัญลักษณ์ให้เป็น Classic Simple Text
+# \uFE0E คือ Variation Selector ที่บังคับให้เบราว์เซอร์แสดงผลเป็น Text ธรรมดา (ไม่เป็น Emoji สีๆ)
+SYMBOLS = ['♒', '☺\uFE0E', '✌\uFE0E', '♌', '✈\uFE0E', '⌘', '◆', '☠\uFE0E', '⬤']
+
 def init_symbol_test():
     st.session_state.update({
         'sym_map': {sym: random.randint(3, 25) for sym in SYMBOLS},
@@ -273,7 +285,6 @@ with st.sidebar:
 if st.session_state.app_mode == "🔢 Number Series":
     st.title("🧠 Number Series Gym")
     
-    # ปุ่มเลือกระดับ 4 ตัวเลือก ปรากฏชัวร์ 100%
     diff_options = ["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)", "สุ่มรวมทุกระดับ (Mixed)"]
     new_diff = st.radio("เลือกระดับโจทย์:", diff_options, horizontal=True, index=diff_options.index(st.session_state.ns_diff))
     if new_diff != st.session_state.ns_diff:
@@ -287,7 +298,7 @@ if st.session_state.app_mode == "🔢 Number Series":
         st.header(f"Sequence: {', '.join(map(str, st.session_state.ns_seq))}, ?")
         st.button("🔄 สุ่มโจทย์ใหม่และเริ่มเวลา", on_click=get_new_ns_question, type="primary")
     with col_timer:
-        components.html(render_timer(30, st.session_state.timer_id_ns, auto_start=True), height=95)
+        components.html(render_timer(30, st.session_state.timer_id_ns, auto_start=True, is_sym_mode=False), height=95)
 
     with st.form("ns_form", clear_on_submit=True):
         guess = st.text_input("พิมพ์คำตอบ:", placeholder="พิมพ์ตัวเลขแล้วกด Enter...")
@@ -320,7 +331,8 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
     
     cols = st.columns(len(SYMBOLS))
     for i, sym in enumerate(SYMBOLS):
-        cols[i].markdown(f"<div style='text-align:center;font-size:20px;line-height:1.2;'>{sym}</div><div style='text-align:center;font-weight:bold;font-size:16px;color:#1f77b4;'>{st.session_state.sym_map[sym]}</div>", unsafe_allow_html=True)
+        # บังคับสีให้เป็นโทนเดียวกันทั้งหมด (เทาเข้ม) เพื่อตัดความเป็น Emoji ออกไปให้หมด
+        cols[i].markdown(f"<div style='text-align:center;font-size:20px;line-height:1.2;color:#333;'>{sym}</div><div style='text-align:center;font-weight:bold;font-size:16px;color:#1f77b4;'>{st.session_state.sym_map[sym]}</div>", unsafe_allow_html=True)
     
     st.write("") 
 
@@ -329,17 +341,20 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
         st.write("") 
         st.button("🔄 สุ่มโจทย์ใหม่และเริ่มเวลา", on_click=init_symbol_test, type="primary", use_container_width=True)
     with col_timer:
-        components.html(render_timer(30, st.session_state.timer_id_sym, auto_start=True), height=95)
+        # เปิดโหมด is_sym_mode=True เพื่อให้มัน Auto-Submit ตอนหมดเวลา
+        components.html(render_timer(30, st.session_state.timer_id_sym, auto_start=True, is_sym_mode=True), height=95)
 
     with st.container(height=300):
         with st.form("sym_form", clear_on_submit=False):
             user_inputs = []
             for i, sym in enumerate(st.session_state.sym_seq):
                 r1, r2 = st.columns([1, 6])
-                r1.markdown(f"<div style='font-size:20px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
+                # บังคับสีให้ตรงกันในตัวโจทย์ด้วย
+                r1.markdown(f"<div style='font-size:20px;text-align:right;color:#333;'>{sym}</div>", unsafe_allow_html=True)
                 ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id_sym}_{i}", label_visibility="collapsed")
                 user_inputs.append(ans)
                 
+            # ตัวอักษรบนปุ่มนี้คือเป้าหมายที่ JS จะวิ่งมาหาเพื่อกดส่ง
             if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
                 st.session_state.sym_submitted = True
                 st.session_state.user_inputs = user_inputs
@@ -364,7 +379,7 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             icon = "✅" if is_correct else "❌"
             
             c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
-            c1.write(f"#### {sym}"); c2.write(f"+ {val}")
+            c1.write(f"#### <span style='color:#333;'>{sym}</span>", unsafe_allow_html=True); c2.write(f"+ {val}")
             if is_correct: c3.success(f"{ans} {icon}")
             else: c3.error(f"{ans if ans else '-'} {icon}")
             c4.info(str(run_sum))
