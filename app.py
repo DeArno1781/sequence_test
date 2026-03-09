@@ -263,78 +263,75 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
     # -----------------------------------------------------
     # 🔥 ระบบ Sticky Header (ตารางสัญลักษณ์ลอยตัว + จับเวลา)
     # -----------------------------------------------------
-    sticky_html = f"""
-    <style>
-    .sticky-container {{
-        position: sticky;
-        top: 2.875rem; /* ระยะขอบบนให้อยู่ใต้ Header ของ Streamlit พอดี */
-        background-color: var(--background-color, #ffffff); /* รองรับ Light/Dark mode อัตโนมัติ */
-        z-index: 9999;
-        padding: 15px 20px;
-        border-bottom: 3px solid #e6e6e6;
-        border-radius: 0 0 15px 15px;
-        box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.1);
-        margin-bottom: 25px;
-    }}
-    @media (prefers-color-scheme: dark) {{
-        .sticky-container {{
-            background-color: #0e1117; /* สีพื้นหลังโหมดมืดของ Streamlit */
-            border-bottom: 3px solid #333;
-            box-shadow: 0 6px 10px -2px rgba(255, 255, 255, 0.05);
-        }}
-    }}
-    .legend-row {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }}
-    .sym-item {{ text-align: center; }}
-    .sym-icon {{ font-size: 32px; }}
-    .sym-val {{ font-size: 22px; font-weight: bold; color: #1f77b4; }}
-    .timer-display {{
-        text-align: center;
-        font-size: 2.2rem;
-        font-family: monospace;
-        font-weight: bold;
-        color: #d62728; /* สีแดงให้ดูเตะตา */
-    }}
-    </style>
-
-    <div class="sticky-container">
-        <div class="legend-row">
-    """
+    # แก้ปัญหาช่องว่าง (Indentation) เพื่อไม่ให้ Streamlit มองเป็น Code Block
+    sticky_html = """
+<style>
+.sticky-container {
+    position: sticky;
+    top: 2.875rem;
+    background-color: var(--background-color, #ffffff);
+    z-index: 9999;
+    padding: 15px 20px;
+    border-bottom: 3px solid #e6e6e6;
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.1);
+    margin-bottom: 25px;
+}
+@media (prefers-color-scheme: dark) {
+    .sticky-container {
+        background-color: #0e1117;
+        border-bottom: 3px solid #333;
+        box-shadow: 0 6px 10px -2px rgba(255, 255, 255, 0.05);
+    }
+}
+.legend-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.sym-item { text-align: center; }
+.sym-icon { font-size: 32px; }
+.sym-val { font-size: 22px; font-weight: bold; color: #1f77b4; }
+.timer-display {
+    text-align: center;
+    font-size: 2.2rem;
+    font-family: monospace;
+    font-weight: bold;
+    color: #d62728;
+}
+</style>
+<div class="sticky-container">
+<div class="legend-row">
+"""
     
-    # วนลูปสร้างค่าสัญลักษณ์ใส่ใน HTML โดยตรง
     for sym in SYMBOLS:
         val = st.session_state.sym_map[sym]
         sticky_html += f'<div class="sym-item"><div class="sym-icon">{sym}</div><div class="sym-val">{val}</div></div>'
         
     sticky_html += f"""
-        </div>
-        <div class="timer-display" id="ts_{st.session_state.timer_id}">30 วินาที</div>
-        
-        <img src="dummy" onerror="
-            var t = 30; // ปรับเหลือ 30 วินาที
-            var e = document.getElementById('ts_{st.session_state.timer_id}');
-            if(window.symTimer) clearInterval(window.symTimer);
-            window.symTimer = setInterval(function() {{
-                t--; 
-                if(t <= 0) {{ 
-                    clearInterval(window.symTimer); 
-                    if(e) {{ e.innerHTML = '⏰ หมดเวลา!'; e.style.color = 'red'; }}
-                }} else {{ 
-                    if(e) {{
-                        e.innerHTML = t + ' วินาที'; 
-                        if(t <= 5) e.style.color = '#ff7f0e';
-                    }}
-                }}
-            }}, 1000);
-        " style="display:none;">
-    </div>
-    """
+</div>
+<div class="timer-display" id="ts_{st.session_state.timer_id}">30 วินาที</div>
+<img src="dummy" onerror="
+var t = 30;
+var e = document.getElementById('ts_{st.session_state.timer_id}');
+if(window.symTimer) clearInterval(window.symTimer);
+window.symTimer = setInterval(function() {{
+    t--; 
+    if(t <= 0) {{ 
+        clearInterval(window.symTimer); 
+        if(e) {{ e.innerHTML = '⏰ หมดเวลา!'; e.style.color = 'red'; }}
+    }} else {{ 
+        if(e) {{
+            e.innerHTML = t + ' วินาที'; 
+            if(t <= 5) e.style.color = '#ff7f0e';
+        }}
+    }}
+}}, 1000);
+" style="display:none;">
+</div>
+"""
     
-    # เรนเดอร์ส่วน Sticky ลงในหน้าเว็บ
     st.markdown(sticky_html, unsafe_allow_html=True)
 
     # -----------------------------------------------------
@@ -344,7 +341,7 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
     # ฟอร์มตอบคำถาม 16 ข้อ
     with st.form("sym_form"):
         user_inputs = []
-        for i, sym in enumerate(st.session_state.sym_seq): # วนลูป 16 ครั้งตามที่เซ็ตไว้
+        for i, sym in enumerate(st.session_state.sym_seq):
             r1, r2 = st.columns([1, 5])
             r1.markdown(f"<div style='font-size:32px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
             user_inputs.append(r2.text_input("ยอด", key=f"s_{i}", label_visibility="collapsed"))
@@ -359,7 +356,10 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
         run_sum = 0
         round_score = 0
         r1, r2, r3, r4 = st.columns([1, 2, 2, 2])
-        r1.write("**สัญลักษณ์**"); r2.write("**ค่าของมัน**"); r3.write("**คุณตอบ**"); r4.write("**ยอดที่ถูกต้อง**")
+        r1.write("**สัญลักษณ์**")
+        r2.write("**ค่าของมัน**")
+        r3.write("**คุณตอบ**")
+        r4.write("**ยอดที่ถูกต้อง**")
 
         for i, sym in enumerate(st.session_state.sym_seq):
             val = st.session_state.sym_map[sym]
@@ -372,13 +372,15 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             icon = "✅" if is_correct else "❌"
             
             c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
-            c1.write(f"### {sym}"); c2.write(f"+ {val}")
+            c1.write(f"### {sym}")
+            c2.write(f"+ {val}")
             if is_correct: c3.success(f"{ans} {icon}")
             else: c3.error(f"{ans if ans else '-'} {icon}")
             c4.info(str(run_sum))
             
         st.session_state.sym_score += round_score
-        if round_score == 16: # ปรับคะแนนเต็มเป็น 16
-            st.balloons(); st.success("🎉 สุดยอด! ทันเวลาและแม่นยำทุกข้อ (16/16)")
+        if round_score == 16:
+            st.balloons()
+            st.success("🎉 สุดยอด! ทันเวลาและแม่นยำทุกข้อ (16/16)")
         else: 
             st.warning(f"ได้ {round_score}/16 คะแนนในรอบนี้ ไม่เป็นไร ลุยกันใหม่!")
