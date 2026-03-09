@@ -258,103 +258,79 @@ if st.session_state.app_mode == "🔢 Number Series":
 
 elif st.session_state.app_mode == "🔣 Symbol Addition":
     st.title("🔣 Continuous Addition")
-    st.write("โจทย์รอบละ 16 ข้อ ให้เวลาบวกเพียง **30 วินาที** (พิมพ์เสร็จกด Tab เพื่อเปลี่ยนช่อง)")
+    st.write("โจทย์รอบละ 16 ข้อ ให้เวลาบวกเพียง **30 วินาที** (พิมพ์เสร็จกด Tab เลื่อนช่องได้เลย กล่องจะเลื่อนลงอัตโนมัติ)")
     
     # -----------------------------------------------------
-    # 🔥 ระบบ Sticky Header (ตารางสัญลักษณ์ลอยตัว + จับเวลา)
+    # 1. แสดงตารางสัญลักษณ์ (อยู่กับที่ ไม่โดนเลื่อน)
     # -----------------------------------------------------
-    # แก้ปัญหาช่องว่าง (Indentation) เพื่อไม่ให้ Streamlit มองเป็น Code Block
-    sticky_html = """
-<style>
-.sticky-container {
-    position: sticky;
-    top: 2.875rem;
-    background-color: var(--background-color, #ffffff);
-    z-index: 9999;
-    padding: 15px 20px;
-    border-bottom: 3px solid #e6e6e6;
-    border-radius: 0 0 15px 15px;
-    box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.1);
-    margin-bottom: 25px;
-}
-@media (prefers-color-scheme: dark) {
-    .sticky-container {
-        background-color: #0e1117;
-        border-bottom: 3px solid #333;
-        box-shadow: 0 6px 10px -2px rgba(255, 255, 255, 0.05);
-    }
-}
-.legend-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-.sym-item { text-align: center; }
-.sym-icon { font-size: 32px; }
-.sym-val { font-size: 22px; font-weight: bold; color: #1f77b4; }
-.timer-display {
-    text-align: center;
-    font-size: 2.2rem;
-    font-family: monospace;
-    font-weight: bold;
-    color: #d62728;
-}
-</style>
-<div class="sticky-container">
-<div class="legend-row">
-"""
+    st.markdown("### 🔑 ค่าสัญลักษณ์")
+    cols = st.columns(len(SYMBOLS))
+    for i, sym in enumerate(SYMBOLS):
+        cols[i].markdown(f"<div style='text-align:center;font-size:28px;'>{sym}</div><div style='text-align:center;font-weight:bold;font-size:22px;color:#1f77b4;'>{st.session_state.sym_map[sym]}</div>", unsafe_allow_html=True)
     
-    for sym in SYMBOLS:
-        val = st.session_state.sym_map[sym]
-        sticky_html += f'<div class="sym-item"><div class="sym-icon">{sym}</div><div class="sym-val">{val}</div></div>'
+    st.divider()
+
+    # -----------------------------------------------------
+    # 2. ปุ่มควบคุม และ นาฬิกาจับเวลา (ใช้ components.html ที่เสถียรที่สุด)
+    # -----------------------------------------------------
+    c_btn, c_timer = st.columns([2, 1])
+    with c_btn:
+        st.button("🔄 สุ่มโจทย์ใหม่และเริ่มจับเวลา", on_click=init_symbol_test, type="primary", use_container_width=True)
         
-    sticky_html += f"""
-</div>
-<div class="timer-display" id="ts_{st.session_state.timer_id}">30 วินาที</div>
-<img src="dummy" onerror="
-var t = 30;
-var e = document.getElementById('ts_{st.session_state.timer_id}');
-if(window.symTimer) clearInterval(window.symTimer);
-window.symTimer = setInterval(function() {{
-    t--; 
-    if(t <= 0) {{ 
-        clearInterval(window.symTimer); 
-        if(e) {{ e.innerHTML = '⏰ หมดเวลา!'; e.style.color = 'red'; }}
-    }} else {{ 
-        if(e) {{
-            e.innerHTML = t + ' วินาที'; 
-            if(t <= 5) e.style.color = '#ff7f0e';
-        }}
-    }}
-}}, 1000);
-" style="display:none;">
-</div>
-"""
-    
-    st.markdown(sticky_html, unsafe_allow_html=True)
+    with c_timer:
+        # โค้ด HTML/JS แบบมาตรฐาน ทำงานอิสระ ไม่โดนบล็อก
+        timer_html = f"""
+        <div id="timer_display" style="font-size: 2rem; font-family: monospace; font-weight: bold; color: #1f77b4; text-align: right;">
+            30 วินาที
+        </div>
+        <script>
+            var t = 30;
+            var elem = document.getElementById("timer_display");
+            var timerId = setInterval(function() {{
+                t--;
+                if(t <= 0) {{
+                    clearInterval(timerId);
+                    elem.innerHTML = "⏰ หมดเวลา!";
+                    elem.style.color = "red";
+                }} else {{
+                    elem.innerHTML = t + " วินาที";
+                    if(t <= 5) elem.style.color = "orange";
+                }}
+            }}, 1000);
+        </script>
+        """
+        components.html(timer_html, height=50)
 
     # -----------------------------------------------------
+    # 3. กล่องโจทย์แบบ "Scrollable" (เลื่อนเฉพาะในกล่องนี้)
+    # -----------------------------------------------------
+    # สร้างกล่องจำกัดความสูงที่ 400px (คุณเลื่อนในนี้ได้โดยที่สัญลักษณ์ข้างบนไม่ขยับ)
+    with st.container(height=400):
+        with st.form("sym_form", clear_on_submit=False):
+            user_inputs = []
+            for i, sym in enumerate(st.session_state.sym_seq):
+                r1, r2 = st.columns([1, 5])
+                r1.markdown(f"<div style='font-size:28px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
+                
+                # ทริค: ใส่ st.session_state.timer_id ไว้ใน key เพื่อบีบให้ช่องกรอกล้างค่าใหม่หมดตอนกด "สุ่มโจทย์ใหม่"
+                ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id}_{i}", label_visibility="collapsed")
+                user_inputs.append(ans)
+                
+            # ปุ่มส่งอยู่ล่างสุดของกล่อง พอแท็บถึงช่องสุดท้ายแล้วกดแท็บอีกทีจะมาตกที่ปุ่มนี้ แล้วกด Enter ส่งได้เลย
+            if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
+                st.session_state.sym_submitted = True
+                st.session_state.user_inputs = user_inputs
+                st.session_state.sym_attempts += 1 
 
-    st.button("🔄 สุ่มโจทย์ใหม่และเริ่มจับเวลา", on_click=init_symbol_test, type="primary", use_container_width=True)
-
-    # ฟอร์มตอบคำถาม 16 ข้อ
-    with st.form("sym_form"):
-        user_inputs = []
-        for i, sym in enumerate(st.session_state.sym_seq):
-            r1, r2 = st.columns([1, 5])
-            r1.markdown(f"<div style='font-size:32px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
-            user_inputs.append(r2.text_input("ยอด", key=f"s_{i}", label_visibility="collapsed"))
-        if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
-            st.session_state.sym_submitted = True
-            st.session_state.user_inputs = user_inputs
-            st.session_state.sym_attempts += 1 
-
-    # ระบบตรวจคำตอบ
+    # -----------------------------------------------------
+    # 4. ระบบตรวจคำตอบ
+    # -----------------------------------------------------
     if st.session_state.sym_submitted:
         st.header("📊 ตรวจคำตอบ")
         run_sum = 0
         round_score = 0
+        
+        # หัวตารางเฉลย
         r1, r2, r3, r4 = st.columns([1, 2, 2, 2])
         r1.write("**สัญลักษณ์**")
         r2.write("**ค่าของมัน**")
@@ -374,8 +350,12 @@ window.symTimer = setInterval(function() {{
             c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
             c1.write(f"### {sym}")
             c2.write(f"+ {val}")
-            if is_correct: c3.success(f"{ans} {icon}")
-            else: c3.error(f"{ans if ans else '-'} {icon}")
+            
+            if is_correct: 
+                c3.success(f"{ans} {icon}")
+            else: 
+                c3.error(f"{ans if ans else '-'} {icon}")
+                
             c4.info(str(run_sum))
             
         st.session_state.sym_score += round_score
@@ -383,4 +363,4 @@ window.symTimer = setInterval(function() {{
             st.balloons()
             st.success("🎉 สุดยอด! ทันเวลาและแม่นยำทุกข้อ (16/16)")
         else: 
-            st.warning(f"ได้ {round_score}/16 คะแนนในรอบนี้ ไม่เป็นไร ลุยกันใหม่!")
+            st.warning(f"ได้ {round_score}/16 คะแนนในรอบนี้ ไล่ดูจุดที่พลาดแล้วลุยใหม่ครับ!")
