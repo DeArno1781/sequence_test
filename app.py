@@ -4,19 +4,19 @@ import random
 import time
 
 # ==========================================
-# 1. ฟังก์ชันตัวช่วยสร้าง HTML นาฬิกาจับเวลาพร้อมปุ่มควบคุม
+# 1. ฟังก์ชันตัวช่วยสร้าง HTML นาฬิกาจับเวลา (ปรับให้กระชับและเล็กลง)
 # ==========================================
 def render_timer(duration_sec, timer_id, auto_start=True):
     auto_js = "startTimer();" if auto_start else ""
     return f"""
-    <div style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef;">
-        <div id="t_display" style="font-size: 2.5rem; font-weight: bold; color: #1f77b4; margin-bottom: 15px; font-family: monospace;">
+    <div style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+        <div id="t_display" style="font-size: 1.8rem; font-weight: bold; color: #1f77b4; margin-bottom: 5px; font-family: monospace;">
             {duration_sec} วินาที
         </div>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="startTimer()" style="padding: 8px 15px; border: none; border-radius: 5px; background: #28a745; color: white; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">▶ เริ่ม (Start)</button>
-            <button onclick="pauseTimer()" style="padding: 8px 15px; border: none; border-radius: 5px; background: #dc3545; color: white; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">⏸ หยุด (Pause)</button>
-            <button onclick="resetTimer()" style="padding: 8px 15px; border: none; border-radius: 5px; background: #6c757d; color: white; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔄 รีเซ็ต (Reset)</button>
+        <div style="display: flex; gap: 8px;">
+            <button onclick="startTimer()" style="padding: 5px 10px; border: none; border-radius: 4px; background: #28a745; color: white; cursor: pointer; font-weight: bold; font-size: 12px;">▶ เริ่ม</button>
+            <button onclick="pauseTimer()" style="padding: 5px 10px; border: none; border-radius: 4px; background: #dc3545; color: white; cursor: pointer; font-weight: bold; font-size: 12px;">⏸ หยุด</button>
+            <button onclick="resetTimer()" style="padding: 5px 10px; border: none; border-radius: 4px; background: #6c757d; color: white; cursor: pointer; font-weight: bold; font-size: 12px;">🔄 รีเซ็ต</button>
         </div>
     </div>
     <script>
@@ -28,20 +28,20 @@ def render_timer(duration_sec, timer_id, auto_start=True):
         function updateDisplay() {{
             if (timeLeft <= 0) {{
                 display.innerHTML = "⏰ หมดเวลา!";
-                display.style.color = "#dc3545"; // แดง
+                display.style.color = "#dc3545"; 
             }} else {{
                 display.innerHTML = timeLeft + " วินาที";
                 if (timeLeft <= 5) {{
-                    display.style.color = "#ffc107"; // ส้ม
+                    display.style.color = "#ffc107"; 
                 }} else {{
-                    display.style.color = "#1f77b4"; // ฟ้า
+                    display.style.color = "#1f77b4"; 
                 }}
             }}
         }}
 
         function startTimer() {{
-            if (timerId !== null) return; // ทำงานอยู่แล้ว
-            if (timeLeft <= 0) return; // หมดเวลาไปแล้ว
+            if (timerId !== null) return; 
+            if (timeLeft <= 0) return; 
             timerId = setInterval(function() {{
                 timeLeft--;
                 updateDisplay();
@@ -62,7 +62,6 @@ def render_timer(duration_sec, timer_id, auto_start=True):
             updateDisplay();
         }}
 
-        // เริ่มอัตโนมัติเมื่อโหลดคอมโพเนนต์เสร็จ
         {auto_js}
     </script>
     """
@@ -196,7 +195,8 @@ def gen_power_differences():
 # ==========================================
 # 3. Setup & State Initialization
 # ==========================================
-st.set_page_config(page_title="Aptitude Test Gym", layout="wide")
+# ใช้ layout="centered" เพื่อไม่ให้หน้าจอกว้างเกินไปจนกวาดสายตายาก
+st.set_page_config(page_title="Aptitude Test Gym", layout="centered")
 
 if 'ns_score' not in st.session_state:
     st.session_state.update({
@@ -267,7 +267,6 @@ with st.sidebar:
 if st.session_state.app_mode == "🔢 Number Series":
     st.title("🧠 Number Series Gym")
     
-    # ควบคุมความยาก
     new_diff = st.radio("ความยาก:", ["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)"], horizontal=True, index=["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)"].index(st.session_state.ns_diff))
     if new_diff != st.session_state.ns_diff:
         st.session_state.ns_diff = new_diff
@@ -276,19 +275,16 @@ if st.session_state.app_mode == "🔢 Number Series":
 
     st.divider()
     
-    # แสดงโจทย์และนาฬิกาควบคู่กัน
-    col_q, col_timer = st.columns([2, 1])
+    col_q, col_timer = st.columns([5, 3])
     with col_q:
         st.header(f"Sequence: {', '.join(map(str, st.session_state.ns_seq))}, ?")
-        st.write("")
         st.button("🔄 สุ่มโจทย์ใหม่และเริ่มเวลา", on_click=get_new_ns_question, type="primary")
         
     with col_timer:
-        # ฝังนาฬิกาที่มีปุ่มควบคุมของตัวเอง (ตั้งเวลา 30 วินาที)
+        # ปรับ height ให้พอดีกับนาฬิกาไซส์ใหม่
         html_code = render_timer(30, st.session_state.timer_id_ns, auto_start=True)
-        components.html(html_code, height=140)
+        components.html(html_code, height=95)
 
-    # ช่องตอบคำถาม
     with st.form("ns_form", clear_on_submit=True):
         guess = st.text_input("พิมพ์คำตอบ:", placeholder="พิมพ์ตัวเลขแล้วกด Enter...")
         if st.form_submit_button("ส่งคำตอบ ⏎"):
@@ -322,35 +318,40 @@ if st.session_state.app_mode == "🔢 Number Series":
 # 6. Main App Logic (Symbol Addition)
 # ==========================================
 elif st.session_state.app_mode == "🔣 Symbol Addition":
-    st.title("🔣 Continuous Addition")
-    st.write("โจทย์รอบละ 16 ข้อ ให้เวลาบวกเพียง **30 วินาที** (พิมพ์เสร็จกด Tab เลื่อนช่องได้เลย กล่องจะเลื่อนลงอัตโนมัติ)")
+    # ลด Header เป็น h3 ให้กินพื้นที่น้อยลง
+    st.markdown("### 🔣 Continuous Addition (30 วินาที)")
     
-    # แสดงค่าสัญลักษณ์
-    st.markdown("### 🔑 ค่าสัญลักษณ์")
+    # -----------------------------------------------------
+    # บีบตารางสัญลักษณ์ให้เล็กกระชับที่สุด
+    # -----------------------------------------------------
     cols = st.columns(len(SYMBOLS))
     for i, sym in enumerate(SYMBOLS):
-        cols[i].markdown(f"<div style='text-align:center;font-size:28px;'>{sym}</div><div style='text-align:center;font-weight:bold;font-size:22px;color:#1f77b4;'>{st.session_state.sym_map[sym]}</div>", unsafe_allow_html=True)
+        # ลด font-size เพื่อให้ประหยัดพื้นที่แนวตั้ง
+        cols[i].markdown(f"<div style='text-align:center;font-size:20px;line-height:1.2;'>{sym}</div><div style='text-align:center;font-weight:bold;font-size:16px;color:#1f77b4;'>{st.session_state.sym_map[sym]}</div>", unsafe_allow_html=True)
     
-    st.divider()
+    st.write("") # เว้นบรรทัดนิดนึงให้ดูไม่แน่นไป
 
+    # แถบควบคุม: ปุ่มสุ่มโจทย์ + นาฬิกา ให้อยู่บรรทัดเดียวกัน
     col_btn, col_timer = st.columns([1, 1])
     with col_btn:
-        st.write("")
-        st.write("")
+        st.write("") # ดันปุ่มลงมาให้ตรงกับนาฬิกา
         st.button("🔄 สุ่มโจทย์ใหม่และเริ่มเวลา", on_click=init_symbol_test, type="primary", use_container_width=True)
         
     with col_timer:
-        # ฝังนาฬิกาที่มีปุ่มควบคุมของตัวเอง (ตั้งเวลา 30 วินาที)
+        # ใช้ Timer แบบบางเบา (height=95)
         html_code = render_timer(30, st.session_state.timer_id_sym, auto_start=True)
-        components.html(html_code, height=140)
+        components.html(html_code, height=95)
 
-    # กล่องโจทย์แบบ Scrollable Height=400 (เลื่อนช่องได้โดยตารางอ้างอิงและนาฬิกาไม่ขยับ)
-    with st.container(height=400):
+    # -----------------------------------------------------
+    # กล่องโจทย์: ลด height เหลือ 300 ป้องกันเบราว์เซอร์เลื่อน
+    # -----------------------------------------------------
+    with st.container(height=300):
         with st.form("sym_form", clear_on_submit=False):
             user_inputs = []
             for i, sym in enumerate(st.session_state.sym_seq):
-                r1, r2 = st.columns([1, 5])
-                r1.markdown(f"<div style='font-size:28px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
+                r1, r2 = st.columns([1, 6])
+                # ลดขนาดสัญลักษณ์หน้าช่องเติมคำตอบด้วย
+                r1.markdown(f"<div style='font-size:20px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
                 ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id_sym}_{i}", label_visibility="collapsed")
                 user_inputs.append(ans)
                 
@@ -367,9 +368,9 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
         
         r1, r2, r3, r4 = st.columns([1, 2, 2, 2])
         r1.write("**สัญลักษณ์**")
-        r2.write("**ค่าของมัน**")
+        r2.write("**ค่า**")
         r3.write("**คุณตอบ**")
-        r4.write("**ยอดที่ถูกต้อง**")
+        r4.write("**เฉลย**")
 
         for i, sym in enumerate(st.session_state.sym_seq):
             val = st.session_state.sym_map[sym]
@@ -382,7 +383,7 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             icon = "✅" if is_correct else "❌"
             
             c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
-            c1.write(f"### {sym}")
+            c1.write(f"#### {sym}")
             c2.write(f"+ {val}")
             if is_correct: 
                 c3.success(f"{ans} {icon}")
