@@ -4,9 +4,8 @@ import random
 import time
 
 # ==========================================
-# 1. Number Series Functions (ครบทุก Possibility)
+# 1. Number Series Functions
 # ==========================================
-# --- EASY ---
 def gen_arithmetic():
     start = random.randint(5, 50)
     step = random.choice([-8, -7, -6, 6, 7, 8, 9, 12, 15])
@@ -22,7 +21,6 @@ def gen_geometric():
     ans = seq.pop()
     return seq, ans, f"อนุกรมคูณสะสม: คูณด้วย {step} เสมอ\nถัดไปคือ {seq[-1]} * {step} = {ans}"
 
-# --- MEDIUM ---
 def gen_interleaved():
     start1 = random.randint(10, 50)
     step1 = random.choice([-5, -4, 4, 5, 6])
@@ -41,7 +39,6 @@ def gen_exponential_basic():
     ans = seq.pop()
     return seq, ans, f"เลขยกกำลังฐาน {base}:\nรูปแบบ {base}^1, {base}^2, {base}^3...\nถัดไปคือ {base}^5 = {ans}"
 
-# --- HARD (สไตล์สอบความถนัด) ---
 def gen_mixed_operations():
     start = random.randint(2, 10)
     mul = random.randint(2, 4)
@@ -132,7 +129,6 @@ def gen_power_differences():
     diff_str = "ยกกำลังสอง" if power == 2 else "ยกกำลังสาม"
     return seq, ans, f"Power Differences (ระยะห่างเป็นเลข{diff_str}):\nส่วนต่างคือ {base_start}^{power}, {base_start+1}^{power}, {base_start+2}^{power}...\nถัดไปคือ {seq[-1]} + {(base_start+4)**power} = {ans}"
 
-
 # ==========================================
 # 2. App Initialization & State
 # ==========================================
@@ -165,7 +161,7 @@ SYMBOLS = ['♒', '😃', '✌', '♌', '✈', '⌘', '◆', '💀', '⬤']
 def init_symbol_test():
     st.session_state.update({
         'sym_map': {sym: random.randint(3, 25) for sym in SYMBOLS},
-        'sym_seq': [random.choice(SYMBOLS) for _ in range(10)],
+        'sym_seq': [random.choice(SYMBOLS) for _ in range(16)], # อัปเดตเป็น 16 ข้อ
         'sym_submitted': False, 'timer_id': str(time.time())
     })
 
@@ -197,7 +193,8 @@ with st.sidebar:
         c1, c2 = st.columns(2)
         c1.metric("คะแนน (ข้อ)", st.session_state.sym_score)
         c2.metric("ทำไปแล้ว (รอบ)", st.session_state.sym_attempts)
-        acc = (st.session_state.sym_score / max(1, st.session_state.sym_attempts*10)) * 100
+        # อัปเดตตัวคูณคะแนนเป็น 16 ข้อต่อรอบ
+        acc = (st.session_state.sym_score / max(1, st.session_state.sym_attempts*16)) * 100
         st.metric("ความแม่นยำรวม", f"{acc:.1f}%")
         if st.button("🗑️ รีเซ็ตสถิติสัญลักษณ์", use_container_width=True):
             st.session_state.sym_score = 0; st.session_state.sym_attempts = 0; st.rerun()
@@ -261,36 +258,102 @@ if st.session_state.app_mode == "🔢 Number Series":
 
 elif st.session_state.app_mode == "🔣 Symbol Addition":
     st.title("🔣 Continuous Addition")
-    st.markdown("### 🔑 ค่าสัญลักษณ์ (เปลี่ยนใหม่ทุกรอบ)")
-    cols = st.columns(len(SYMBOLS))
-    for i, sym in enumerate(SYMBOLS):
-        cols[i].markdown(f"<div style='text-align:center;font-size:24px;'>{sym}</div><div style='text-align:center;font-weight:bold;'>{st.session_state.sym_map[sym]}</div>", unsafe_allow_html=True)
+    st.write("โจทย์รอบละ 16 ข้อ ให้เวลาบวกเพียง **30 วินาที** (พิมพ์เสร็จกด Tab เพื่อเปลี่ยนช่อง)")
     
-    st.divider()
-    c_q, c_time = st.columns([2, 1])
-    with c_time:
-        st.button("🔄 เริ่มรอบใหม่", on_click=init_symbol_test, type="primary", use_container_width=True)
-        components.html(f"""
-        <div id="ts_{st.session_state.timer_id}" style="font-size:2rem; font-family:monospace; font-weight:bold; color:#1f77b4; margin-top:10px;">45 วินาที</div>
-        <script>
-            var t=45, e=document.getElementById("ts_{st.session_state.timer_id}");
-            var id=setInterval(function(){{t--; if(t<=0){{clearInterval(id); e.innerHTML="⏰ หมดเวลา!"; e.style.color="red";}}else{{e.innerHTML=t+" วินาที"; if(t<=10)e.style.color="orange";}}}}, 1000);
-        </script>
-        """, height=60)
+    # -----------------------------------------------------
+    # 🔥 ระบบ Sticky Header (ตารางสัญลักษณ์ลอยตัว + จับเวลา)
+    # -----------------------------------------------------
+    sticky_html = f"""
+    <style>
+    .sticky-container {{
+        position: sticky;
+        top: 2.875rem; /* ระยะขอบบนให้อยู่ใต้ Header ของ Streamlit พอดี */
+        background-color: var(--background-color, #ffffff); /* รองรับ Light/Dark mode อัตโนมัติ */
+        z-index: 9999;
+        padding: 15px 20px;
+        border-bottom: 3px solid #e6e6e6;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.1);
+        margin-bottom: 25px;
+    }}
+    @media (prefers-color-scheme: dark) {{
+        .sticky-container {{
+            background-color: #0e1117; /* สีพื้นหลังโหมดมืดของ Streamlit */
+            border-bottom: 3px solid #333;
+            box-shadow: 0 6px 10px -2px rgba(255, 255, 255, 0.05);
+        }}
+    }}
+    .legend-row {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }}
+    .sym-item {{ text-align: center; }}
+    .sym-icon {{ font-size: 32px; }}
+    .sym-val {{ font-size: 22px; font-weight: bold; color: #1f77b4; }}
+    .timer-display {{
+        text-align: center;
+        font-size: 2.2rem;
+        font-family: monospace;
+        font-weight: bold;
+        color: #d62728; /* สีแดงให้ดูเตะตา */
+    }}
+    </style>
 
-    with c_q:
-        with st.form("sym_form"):
-            st.write("พิมพ์ยอดรวมสะสม (กด Tab เลื่อนช่อง)")
-            user_inputs = []
-            for i, sym in enumerate(st.session_state.sym_seq):
-                r1, r2 = st.columns([1, 4])
-                r1.markdown(f"<div style='font-size:30px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
-                user_inputs.append(r2.text_input("ยอด", key=f"s_{i}", label_visibility="collapsed"))
-            if st.form_submit_button("ส่งคำตอบ ⏎", use_container_width=True):
-                st.session_state.sym_submitted = True
-                st.session_state.user_inputs = user_inputs
-                st.session_state.sym_attempts += 1 # นับเป็น 1 รอบ
+    <div class="sticky-container">
+        <div class="legend-row">
+    """
+    
+    # วนลูปสร้างค่าสัญลักษณ์ใส่ใน HTML โดยตรง
+    for sym in SYMBOLS:
+        val = st.session_state.sym_map[sym]
+        sticky_html += f'<div class="sym-item"><div class="sym-icon">{sym}</div><div class="sym-val">{val}</div></div>'
+        
+    sticky_html += f"""
+        </div>
+        <div class="timer-display" id="ts_{st.session_state.timer_id}">30 วินาที</div>
+        
+        <img src="dummy" onerror="
+            var t = 30; // ปรับเหลือ 30 วินาที
+            var e = document.getElementById('ts_{st.session_state.timer_id}');
+            if(window.symTimer) clearInterval(window.symTimer);
+            window.symTimer = setInterval(function() {{
+                t--; 
+                if(t <= 0) {{ 
+                    clearInterval(window.symTimer); 
+                    if(e) {{ e.innerHTML = '⏰ หมดเวลา!'; e.style.color = 'red'; }}
+                }} else {{ 
+                    if(e) {{
+                        e.innerHTML = t + ' วินาที'; 
+                        if(t <= 5) e.style.color = '#ff7f0e';
+                    }}
+                }}
+            }}, 1000);
+        " style="display:none;">
+    </div>
+    """
+    
+    # เรนเดอร์ส่วน Sticky ลงในหน้าเว็บ
+    st.markdown(sticky_html, unsafe_allow_html=True)
 
+    # -----------------------------------------------------
+
+    st.button("🔄 สุ่มโจทย์ใหม่และเริ่มจับเวลา", on_click=init_symbol_test, type="primary", use_container_width=True)
+
+    # ฟอร์มตอบคำถาม 16 ข้อ
+    with st.form("sym_form"):
+        user_inputs = []
+        for i, sym in enumerate(st.session_state.sym_seq): # วนลูป 16 ครั้งตามที่เซ็ตไว้
+            r1, r2 = st.columns([1, 5])
+            r1.markdown(f"<div style='font-size:32px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
+            user_inputs.append(r2.text_input("ยอด", key=f"s_{i}", label_visibility="collapsed"))
+        if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
+            st.session_state.sym_submitted = True
+            st.session_state.user_inputs = user_inputs
+            st.session_state.sym_attempts += 1 
+
+    # ระบบตรวจคำตอบ
     if st.session_state.sym_submitted:
         st.header("📊 ตรวจคำตอบ")
         run_sum = 0
@@ -315,5 +378,7 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             c4.info(str(run_sum))
             
         st.session_state.sym_score += round_score
-        if round_score == 10: st.balloons(); st.success("🎉 เพอร์เฟกต์! ถูกทุกข้อ")
-        else: st.warning(f"บวกพลาดไปบ้าง ได้ {round_score}/10 คะแนนในรอบนี้")
+        if round_score == 16: # ปรับคะแนนเต็มเป็น 16
+            st.balloons(); st.success("🎉 สุดยอด! ทันเวลาและแม่นยำทุกข้อ (16/16)")
+        else: 
+            st.warning(f"ได้ {round_score}/16 คะแนนในรอบนี้ ไม่เป็นไร ลุยกันใหม่!")
