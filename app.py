@@ -4,7 +4,7 @@ import random
 import time
 
 # ==========================================
-# 1. ฟังก์ชันตัวช่วยสร้าง HTML นาฬิกาจับเวลา (ปรับให้กระชับและเล็กลง)
+# 1. ฟังก์ชันนาฬิกาจับเวลา (HTML/JS อิสระ ไม่กระตุก)
 # ==========================================
 def render_timer(duration_sec, timer_id, auto_start=True):
     auto_js = "startTimer();" if auto_start else ""
@@ -31,11 +31,8 @@ def render_timer(duration_sec, timer_id, auto_start=True):
                 display.style.color = "#dc3545"; 
             }} else {{
                 display.innerHTML = timeLeft + " วินาที";
-                if (timeLeft <= 5) {{
-                    display.style.color = "#ffc107"; 
-                }} else {{
-                    display.style.color = "#1f77b4"; 
-                }}
+                if (timeLeft <= 5) display.style.color = "#ffc107"; 
+                else display.style.color = "#1f77b4"; 
             }}
         }}
 
@@ -43,32 +40,26 @@ def render_timer(duration_sec, timer_id, auto_start=True):
             if (timerId !== null) return; 
             if (timeLeft <= 0) return; 
             timerId = setInterval(function() {{
-                timeLeft--;
-                updateDisplay();
+                timeLeft--; updateDisplay();
                 if (timeLeft <= 0) clearInterval(timerId);
             }}, 1000);
         }}
 
         function pauseTimer() {{
-            if (timerId !== null) {{
-                clearInterval(timerId);
-                timerId = null;
-            }}
+            if (timerId !== null) {{ clearInterval(timerId); timerId = null; }}
         }}
 
         function resetTimer() {{
-            pauseTimer();
-            timeLeft = duration;
-            updateDisplay();
+            pauseTimer(); timeLeft = duration; updateDisplay();
         }}
-
         {auto_js}
     </script>
     """
 
 # ==========================================
-# 2. ฟังก์ชันสุ่มโจทย์ Number Series
+# 2. ฟังก์ชันสุ่มโจทย์ Number Series (ครบ 11 รูปแบบ)
 # ==========================================
+# --- EASY ---
 def gen_arithmetic():
     start = random.randint(5, 50)
     step = random.choice([-8, -7, -6, 6, 7, 8, 9, 12, 15])
@@ -84,6 +75,7 @@ def gen_geometric():
     ans = seq.pop()
     return seq, ans, f"อนุกรมคูณสะสม: คูณด้วย {step} เสมอ\nถัดไปคือ {seq[-1]} * {step} = {ans}"
 
+# --- MEDIUM ---
 def gen_interleaved():
     start1 = random.randint(10, 50)
     step1 = random.choice([-5, -4, 4, 5, 6])
@@ -102,6 +94,7 @@ def gen_exponential_basic():
     ans = seq.pop()
     return seq, ans, f"เลขยกกำลังฐาน {base}:\nรูปแบบ {base}^1, {base}^2, {base}^3...\nถัดไปคือ {base}^5 = {ans}"
 
+# --- HARD ---
 def gen_mixed_operations():
     start = random.randint(2, 10)
     mul = random.randint(2, 4)
@@ -195,30 +188,44 @@ def gen_power_differences():
 # ==========================================
 # 3. Setup & State Initialization
 # ==========================================
-# ใช้ layout="centered" เพื่อไม่ให้หน้าจอกว้างเกินไปจนกวาดสายตายาก
 st.set_page_config(page_title="Aptitude Test Gym", layout="centered")
 
 if 'ns_score' not in st.session_state:
     st.session_state.update({
-        'ns_score': 0, 'ns_attempts': 0, 'ns_diff': 'ยาก (Hard)',
-        'sym_score': 0, 'sym_attempts': 0,
+        'ns_score': 0, 
+        'ns_attempts': 0, 
+        'ns_diff': 'สุ่มรวมทุกระดับ (Mixed)', # ค่า Default เริ่มต้น
+        'sym_score': 0, 
+        'sym_attempts': 0, 
         'app_mode': '🔢 Number Series'
     })
 
 def get_new_ns_question():
     level = st.session_state.ns_diff
-    if level == "ง่าย (Easy)":
-        funcs = [gen_arithmetic, gen_geometric]
-    elif level == "ปานกลาง (Medium)":
-        funcs = [gen_interleaved, gen_exponential_basic]
-    else:
-        funcs = [gen_mixed_operations, gen_prime_addition, gen_fractional_multiplier, 
-                 gen_digit_sum, gen_fibonacci_variant, gen_multiply_and_modify, gen_power_differences]
+    
+    # แบ่งกลุ่มฟังก์ชันความยากให้ชัดเจน
+    funcs_easy = [gen_arithmetic, gen_geometric]
+    funcs_med = [gen_interleaved, gen_exponential_basic]
+    funcs_hard = [gen_mixed_operations, gen_prime_addition, gen_fractional_multiplier, gen_digit_sum, gen_fibonacci_variant, gen_multiply_and_modify, gen_power_differences]
+    
+    # ลอจิกการเลือกระดับโจทย์ (รวมข้อตามที่คุณต้องการ)
+    if level == "ง่าย (Easy)": 
+        funcs = funcs_easy
+    elif level == "ปานกลาง (Medium)": 
+        funcs = funcs_med
+    elif level == "ยาก (Hard)": 
+        funcs = funcs_hard
+    else: 
+        # สุ่มรวมทุกระดับ (Mixed) - นำโจทย์ทั้ง 11 แบบมารวมกัน
+        funcs = funcs_easy + funcs_med + funcs_hard
     
     seq, ans, logic = random.choice(funcs)()
+    
+    # อัปเดต state พร้อมรีเซ็ตเวลาใหม่ทุกครั้งที่สุ่ม
     st.session_state.update({
-        'ns_seq': seq, 'ns_ans': ans, 'ns_logic': logic,
-        'ns_show_ans': False, 'ns_feedback': None, 'timer_id_ns': str(time.time())
+        'ns_seq': seq, 'ns_ans': ans, 'ns_logic': logic, 
+        'ns_show_ans': False, 'ns_feedback': None, 
+        'timer_id_ns': str(time.time())
     })
 
 SYMBOLS = ['♒', '😃', '✌', '♌', '✈', '⌘', '◆', '💀', '⬤']
@@ -250,7 +257,6 @@ with st.sidebar:
         st.metric("ความแม่นยำ", f"{acc:.1f}%")
         if st.button("🗑️ รีเซ็ตสถิติอนุกรม", use_container_width=True):
             st.session_state.ns_score = 0; st.session_state.ns_attempts = 0; st.rerun()
-            
     else:
         st.subheader("โหมดบวกเลขต่อเนื่อง")
         c1, c2 = st.columns(2)
@@ -267,11 +273,12 @@ with st.sidebar:
 if st.session_state.app_mode == "🔢 Number Series":
     st.title("🧠 Number Series Gym")
     
-    new_diff = st.radio("ความยาก:", ["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)"], horizontal=True, index=["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)"].index(st.session_state.ns_diff))
+    # ปุ่มเลือกระดับ 4 ตัวเลือก ปรากฏชัวร์ 100%
+    diff_options = ["ง่าย (Easy)", "ปานกลาง (Medium)", "ยาก (Hard)", "สุ่มรวมทุกระดับ (Mixed)"]
+    new_diff = st.radio("เลือกระดับโจทย์:", diff_options, horizontal=True, index=diff_options.index(st.session_state.ns_diff))
     if new_diff != st.session_state.ns_diff:
         st.session_state.ns_diff = new_diff
-        get_new_ns_question()
-        st.rerun()
+        get_new_ns_question(); st.rerun()
 
     st.divider()
     
@@ -279,11 +286,8 @@ if st.session_state.app_mode == "🔢 Number Series":
     with col_q:
         st.header(f"Sequence: {', '.join(map(str, st.session_state.ns_seq))}, ?")
         st.button("🔄 สุ่มโจทย์ใหม่และเริ่มเวลา", on_click=get_new_ns_question, type="primary")
-        
     with col_timer:
-        # ปรับ height ให้พอดีกับนาฬิกาไซส์ใหม่
-        html_code = render_timer(30, st.session_state.timer_id_ns, auto_start=True)
-        components.html(html_code, height=95)
+        components.html(render_timer(30, st.session_state.timer_id_ns, auto_start=True), height=95)
 
     with st.form("ns_form", clear_on_submit=True):
         guess = st.text_input("พิมพ์คำตอบ:", placeholder="พิมพ์ตัวเลขแล้วกด Enter...")
@@ -295,21 +299,15 @@ if st.session_state.app_mode == "🔢 Number Series":
                     if ans_val == st.session_state.ns_ans:
                         st.session_state.ns_score += 1
                         st.session_state.ns_feedback = "correct"
-                    else:
+                    else: 
                         st.session_state.ns_feedback = "incorrect"
                 except: 
                     st.error("ใส่เฉพาะตัวเลขเท่านั้นครับ")
 
-    if st.session_state.ns_feedback == "correct":
-        st.success("✅ ถูกต้อง! บวกคะแนนแล้ว")
-    elif st.session_state.ns_feedback == "incorrect":
-        st.error("❌ ยังไม่ถูก ลองคิดอีกที")
+    if st.session_state.ns_feedback == "correct": st.success("✅ ถูกต้อง! บวกคะแนนแล้ว")
+    elif st.session_state.ns_feedback == "incorrect": st.error("❌ ยังไม่ถูก ลองคิดอีกที")
 
-    c1, c2 = st.columns(2)
-    with c1: 
-        if st.button("💡 ดูเฉลย", use_container_width=True): 
-            st.session_state.ns_show_ans = True
-        
+    if st.button("💡 ดูเฉลย", use_container_width=True): st.session_state.ns_show_ans = True
     if st.session_state.ns_show_ans:
         st.info(f"**ตอบ: {st.session_state.ns_ans}**\n\n**แนวคิด:**\n{st.session_state.ns_logic}")
 
@@ -318,39 +316,26 @@ if st.session_state.app_mode == "🔢 Number Series":
 # 6. Main App Logic (Symbol Addition)
 # ==========================================
 elif st.session_state.app_mode == "🔣 Symbol Addition":
-    # ลด Header เป็น h3 ให้กินพื้นที่น้อยลง
     st.markdown("### 🔣 Continuous Addition (30 วินาที)")
     
-    # -----------------------------------------------------
-    # บีบตารางสัญลักษณ์ให้เล็กกระชับที่สุด
-    # -----------------------------------------------------
     cols = st.columns(len(SYMBOLS))
     for i, sym in enumerate(SYMBOLS):
-        # ลด font-size เพื่อให้ประหยัดพื้นที่แนวตั้ง
         cols[i].markdown(f"<div style='text-align:center;font-size:20px;line-height:1.2;'>{sym}</div><div style='text-align:center;font-weight:bold;font-size:16px;color:#1f77b4;'>{st.session_state.sym_map[sym]}</div>", unsafe_allow_html=True)
     
-    st.write("") # เว้นบรรทัดนิดนึงให้ดูไม่แน่นไป
+    st.write("") 
 
-    # แถบควบคุม: ปุ่มสุ่มโจทย์ + นาฬิกา ให้อยู่บรรทัดเดียวกัน
     col_btn, col_timer = st.columns([1, 1])
     with col_btn:
-        st.write("") # ดันปุ่มลงมาให้ตรงกับนาฬิกา
+        st.write("") 
         st.button("🔄 สุ่มโจทย์ใหม่และเริ่มเวลา", on_click=init_symbol_test, type="primary", use_container_width=True)
-        
     with col_timer:
-        # ใช้ Timer แบบบางเบา (height=95)
-        html_code = render_timer(30, st.session_state.timer_id_sym, auto_start=True)
-        components.html(html_code, height=95)
+        components.html(render_timer(30, st.session_state.timer_id_sym, auto_start=True), height=95)
 
-    # -----------------------------------------------------
-    # กล่องโจทย์: ลด height เหลือ 300 ป้องกันเบราว์เซอร์เลื่อน
-    # -----------------------------------------------------
     with st.container(height=300):
         with st.form("sym_form", clear_on_submit=False):
             user_inputs = []
             for i, sym in enumerate(st.session_state.sym_seq):
                 r1, r2 = st.columns([1, 6])
-                # ลดขนาดสัญลักษณ์หน้าช่องเติมคำตอบด้วย
                 r1.markdown(f"<div style='font-size:20px;text-align:right;'>{sym}</div>", unsafe_allow_html=True)
                 ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id_sym}_{i}", label_visibility="collapsed")
                 user_inputs.append(ans)
@@ -360,17 +345,13 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
                 st.session_state.user_inputs = user_inputs
                 st.session_state.sym_attempts += 1 
 
-    # ระบบตรวจคำตอบ
     if st.session_state.sym_submitted:
         st.header("📊 ตรวจคำตอบ")
         run_sum = 0
         round_score = 0
         
         r1, r2, r3, r4 = st.columns([1, 2, 2, 2])
-        r1.write("**สัญลักษณ์**")
-        r2.write("**ค่า**")
-        r3.write("**คุณตอบ**")
-        r4.write("**เฉลย**")
+        r1.write("**สัญลักษณ์**"); r2.write("**ค่า**"); r3.write("**คุณตอบ**"); r4.write("**เฉลย**")
 
         for i, sym in enumerate(st.session_state.sym_seq):
             val = st.session_state.sym_map[sym]
@@ -383,17 +364,11 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             icon = "✅" if is_correct else "❌"
             
             c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
-            c1.write(f"#### {sym}")
-            c2.write(f"+ {val}")
-            if is_correct: 
-                c3.success(f"{ans} {icon}")
-            else: 
-                c3.error(f"{ans if ans else '-'} {icon}")
+            c1.write(f"#### {sym}"); c2.write(f"+ {val}")
+            if is_correct: c3.success(f"{ans} {icon}")
+            else: c3.error(f"{ans if ans else '-'} {icon}")
             c4.info(str(run_sum))
             
         st.session_state.sym_score += round_score
-        if round_score == 16:
-            st.balloons()
-            st.success("🎉 สุดยอด! ทันเวลาและแม่นยำทุกข้อ (16/16)")
-        else: 
-            st.warning(f"ได้ {round_score}/16 คะแนนในรอบนี้ ไล่ดูจุดที่พลาดแล้วลุยใหม่ครับ!")
+        if round_score == 16: st.success("🎉 สุดยอด! ทันเวลาและแม่นยำทุกข้อ (16/16)")
+        else: st.warning(f"ได้ {round_score}/16 คะแนนในรอบนี้ ไล่ดูจุดที่พลาดแล้วลุยใหม่ครับ!")
