@@ -195,7 +195,7 @@ def gen_power_differences():
     return seq, ans, f"Power Differences (ระยะห่างเป็นเลข{diff_str}):\nส่วนต่างคือ {base_start}^{power}, {base_start+1}^{power}, {base_start+2}^{power}...\nถัดไปคือ {seq[-1]} + {(base_start+4)**power} = {ans}"
 
 # ==========================================
-# 2.5 ฟังก์ชันสำหรับ Kohs Block Generator (อัปเดตใหม่)
+# 2.5 ฟังก์ชันสำหรับ Kohs Block Generator
 # ==========================================
 BLOCK_SIZE = 150
 PADDING = 20
@@ -223,7 +223,6 @@ def draw_block(face_type, size=BLOCK_SIZE, show_grid=True):
     elif face_type == 5:
         draw.polygon([(0, 0), (size, size), (0, size)], fill=RED)
     
-    # วาดเส้นขอบ (Grid) ถ้าผู้ใช้เลือกเปิด
     if show_grid:
         draw.rectangle([0, 0, size-1, size-1], outline=(150, 150, 150), width=1)
     return img
@@ -239,18 +238,16 @@ def generate_complex_pattern(pattern, show_grid=True, rotate_diamond=False):
         y_pos = PADDING + (r * BLOCK_SIZE)
         canvas.paste(block_img, (x_pos, y_pos))
         
-    # หมุนภาพ 45 องศาถ้าผู้ใช้เลือก (ขยายขอบเขตภาพและเติมพื้นหลังสีขาว)
     if rotate_diamond:
         canvas = canvas.rotate(-45, expand=True, fillcolor=WHITE)
         
     return canvas
 
 def generate_random_faces():
-    # สุ่มหน้าโดยเน้นลายทแยงเยอะๆ ให้ยากขึ้น
     return [random.choice([0, 1, 2, 3, 4, 5, 2, 3, 4, 5, 2, 3, 4, 5]) for _ in range(9)]
 
 # ==========================================
-# 3. Setup & State Initialization
+# 3. Setup & State Initialization (อัปเดตตัวแปรใหม่)
 # ==========================================
 st.set_page_config(page_title="AVMED Aptitude Gym", layout="centered")
 
@@ -259,7 +256,8 @@ if 'ns_score' not in st.session_state:
         'ns_score': 0, 'ns_attempts': 0, 'ns_diff': 'สุ่มรวมทุกระดับ (Mixed)', 
         'sym_score': 0, 'sym_attempts': 0, 'app_mode': '🔢 Number Series',
         'sym_col_idx': 0, 'sym_round_scores': [], 'sym_columns': [], 'sym_round_times': [],
-        'kohs_pattern': generate_random_faces(), 'timer_id_kohs': str(time.time())
+        'kohs_pattern': generate_random_faces(), 'timer_id_kohs': str(time.time()),
+        'kohs_current_rot': False # เก็บสถานะว่ารูปปัจจุบันเอียงหรือตรง
     })
 
 def get_new_ns_question():
@@ -458,7 +456,7 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             st.button("🔄 สร้างข้อสอบชุดใหม่ (เปลี่ยนค่าสัญลักษณ์)", on_click=init_symbol_test, type="primary", use_container_width=True)
 
 # ==========================================
-# 7. Main App Logic (Kohs Block Design) - อัปเดตใหม่
+# 7. Main App Logic (Kohs Block Design) - อัปเดตล่าสุด
 # ==========================================
 elif st.session_state.app_mode == "🧊 Kohs Block Design":
     st.title("🧊 Kohs Block Design Gym")
@@ -468,18 +466,36 @@ elif st.session_state.app_mode == "🧊 Kohs Block Design":
     col1, col2 = st.columns([3, 2])
 
     with col1:
-        # ใส่ Toggle ให้ผู้ใช้เลือกเปิด/ปิด Grid และหมุนภาพ
-        c_grid, c_rot = st.columns(2)
-        show_grid = c_grid.toggle("🔲 แสดงเส้นตาราง (Grid)", value=True)
-        is_diamond = c_rot.toggle("♦️ หมุน 45 องศา (Diamond)", value=False)
+        show_grid = st.toggle("🔲 แสดงเส้นตาราง (Grid)", value=True)
         
-        if st.button("🔄 สุ่มโจทย์ใหม่ (Generate New)", type="primary", use_container_width=True):
-            st.session_state.kohs_pattern = generate_random_faces()
-            st.session_state.timer_id_kohs = str(time.time())
+        # เลือกโหมดว่าข้อถัดไปจะให้วางแนวแบบไหน
+        rot_setting = st.radio("การวางแนวเมื่อกดสุ่มโจทย์ใหม่:", ["🎲 สุ่มอัตโนมัติ (Random)", "⬛ ตรงเสมอ (Straight)", "♦️ เอียงเสมอ (Diamond)"], horizontal=True)
+        
+        c_gen, c_flip = st.columns([2, 1])
+        with c_gen:
+            if st.button("🔄 สุ่มโจทย์ใหม่ (Generate New)", type="primary", use_container_width=True):
+                st.session_state.kohs_pattern = generate_random_faces()
+                st.session_state.timer_id_kohs = str(time.time())
+                
+                # กำหนดแนวเอียงตามโหมดที่เลือกไว้
+                if rot_setting == "🎲 สุ่มอัตโนมัติ (Random)":
+                    st.session_state.kohs_current_rot = random.choice([True, False])
+                elif rot_setting == "⬛ ตรงเสมอ (Straight)":
+                    st.session_state.kohs_current_rot = False
+                else:
+                    st.session_state.kohs_current_rot = True
 
-        # สร้างภาพโจทย์จากแพทเทิร์นที่จำไว้ โดยอิงการตั้งค่า Toggle ปัจจุบัน
-        img = generate_complex_pattern(st.session_state.kohs_pattern, show_grid=show_grid, rotate_diamond=is_diamond)
+        with c_flip:
+            if st.button("🔁 พลิกมุมมองภาพนี้", type="secondary", use_container_width=True):
+                st.session_state.kohs_current_rot = not st.session_state.kohs_current_rot
+
+        # สร้างภาพโจทย์จาก State ปัจจุบัน
+        img = generate_complex_pattern(st.session_state.kohs_pattern, show_grid=show_grid, rotate_diamond=st.session_state.kohs_current_rot)
         st.image(img, use_container_width=False)
+        
+        # แสดงสถานะปัจจุบัน
+        status_text = "♦️ เอียง 45 องศา (Diamond)" if st.session_state.kohs_current_rot else "⬛ ตรงปกติ (Straight)"
+        st.caption(f"📌 มุมมองปัจจุบัน: **{status_text}**")
 
     with col2:
         st.markdown("### ⏱️ จับเวลาการต่อลูกเต๋า")
