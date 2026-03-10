@@ -220,11 +220,10 @@ def get_new_ns_question():
     seq, ans, logic = random.choice(funcs)()
     st.session_state.update({'ns_seq': seq, 'ns_ans': ans, 'ns_logic': logic, 'ns_show_ans': False, 'ns_feedback': None, 'timer_id_ns': str(time.time())})
 
-# ชุดสัญลักษณ์แบบ Monochrome เรียบง่าย (เหมือนข้อสอบในกระดาษเป๊ะ)
+# ชุดสัญลักษณ์แบบ Monochrome เรียบง่าย
 SYMBOLS = ['★', '☺\uFE0E', '✌\uFE0E', '▲', '✈\uFE0E', '⌘', '◆', '☠\uFE0E', '⬤']
 
 def init_symbol_test():
-    # สร้าง Map ครัังเดียว และสร้างโจทย์รอไว้ 8 คอลัมน์ คอลัมน์ละ 16 ข้อ
     st.session_state.update({
         'sym_map': {sym: random.randint(3, 25) for sym in SYMBOLS},
         'sym_columns': [[random.choice(SYMBOLS) for _ in range(16)] for _ in range(8)],
@@ -283,7 +282,8 @@ if st.session_state.app_mode == "🔢 Number Series":
         components.html(render_timer(30, st.session_state.timer_id_ns, auto_start=True, is_sym_mode=False), height=95)
 
     with st.form("ns_form", clear_on_submit=True):
-        guess = st.text_input("พิมพ์คำตอบ:", placeholder="พิมพ์ตัวเลขแล้วกด Enter...")
+        # เติม autocomplete="off" ตรงนี้
+        guess = st.text_input("พิมพ์คำตอบ:", placeholder="พิมพ์ตัวเลขแล้วกด Enter...", autocomplete="off")
         if st.form_submit_button("ส่งคำตอบ ⏎"):
             if guess.strip():
                 try:
@@ -331,7 +331,8 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
                 for i, sym in enumerate(current_seq):
                     r1, r2 = st.columns([1, 6])
                     r1.markdown(f"<div style='font-size:20px;text-align:right;color:#333;'>{sym}</div>", unsafe_allow_html=True)
-                    ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id_sym}_{i}", label_visibility="collapsed")
+                    # เติม autocomplete="off" ตรงนี้
+                    ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id_sym}_{i}", label_visibility="collapsed", autocomplete="off")
                     user_inputs.append(ans)
                     
                 if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
