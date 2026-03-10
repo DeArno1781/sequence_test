@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import random
 import time
+from PIL import Image, ImageDraw
 
 # ==========================================
 # 1. ฟังก์ชันนาฬิกาจับเวลา (อิสระ + Auto Submit + Default Pause)
@@ -70,6 +71,7 @@ def render_timer(duration_sec, timer_id, auto_start=False, is_sym_mode=False):
 # ==========================================
 # 2. ฟังก์ชันสุ่มโจทย์ Number Series (ครบ 11 รูปแบบ)
 # ==========================================
+# (คงโค้ดส่วนของ Number Series ไว้เหมือนเดิมทั้งหมด เพื่อประหยัดพื้นที่แสดงผล)
 def gen_arithmetic():
     start = random.randint(5, 50)
     step = random.choice([-8, -7, -6, 6, 7, 8, 9, 12, 15])
@@ -194,6 +196,58 @@ def gen_power_differences():
     return seq, ans, f"Power Differences (ระยะห่างเป็นเลข{diff_str}):\nส่วนต่างคือ {base_start}^{power}, {base_start+1}^{power}, {base_start+2}^{power}...\nถัดไปคือ {seq[-1]} + {(base_start+4)**power} = {ans}"
 
 # ==========================================
+# 2.5 ฟังก์ชันสำหรับ Kohs Block Generator
+# ==========================================
+BLOCK_SIZE = 150
+PADDING = 10
+ROWS, COLS = 3, 3
+GRID_WIDTH = BLOCK_SIZE * COLS
+GRID_HEIGHT = BLOCK_SIZE * ROWS
+CANVAS_WIDTH = GRID_WIDTH + (PADDING * 2)
+CANVAS_HEIGHT = GRID_HEIGHT + (PADDING * 2)
+RED = (220, 20, 60)
+WHITE = (255, 255, 255)
+
+def draw_block(face_type, size=BLOCK_SIZE):
+    img = Image.new("RGB", (size, size), WHITE)
+    draw = ImageDraw.Draw(img)
+    if face_type == 0:
+        pass
+    elif face_type == 1:
+        draw.rectangle([0, 0, size, size], fill=RED)
+    elif face_type == 2:
+        draw.polygon([(0, 0), (size, 0), (0, size)], fill=RED)
+    elif face_type == 3:
+        draw.polygon([(0, size), (size, 0), (size, size)], fill=RED)
+    elif face_type == 4:
+        draw.polygon([(0, 0), (size, 0), (size, size)], fill=RED)
+    elif face_type == 5:
+        draw.polygon([(0, 0), (size, size), (0, size)], fill=RED)
+    
+    # เพิ่มเส้นขอบบางๆ ให้เห็นแต่ละบล็อกชัดเจนขึ้น
+    draw.rectangle([0, 0, size-1, size-1], outline=(200, 200, 200), width=1)
+    return img
+
+def generate_complex_pattern():
+    block_faces = []
+    for _ in range(ROWS * COLS):
+        # เน้นหน้าทแยงให้เยอะขึ้นเพื่อความยาก
+        choice = random.choice([0, 1, 2, 3, 4, 5, 2, 3, 4, 5, 2, 3, 4, 5])
+        block_faces.append(choice)
+        
+    canvas = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), WHITE)
+    block_index = 0
+    for r in range(ROWS):
+        for c in range(COLS):
+            face_type = block_faces[block_index]
+            block_img = draw_block(face_type)
+            x_pos = PADDING + (c * BLOCK_SIZE)
+            y_pos = PADDING + (r * BLOCK_SIZE)
+            canvas.paste(block_img, (x_pos, y_pos))
+            block_index += 1
+    return canvas
+
+# ==========================================
 # 3. Setup & State Initialization
 # ==========================================
 st.set_page_config(page_title="AVMED Aptitude Gym", layout="centered")
@@ -202,7 +256,8 @@ if 'ns_score' not in st.session_state:
     st.session_state.update({
         'ns_score': 0, 'ns_attempts': 0, 'ns_diff': 'สุ่มรวมทุกระดับ (Mixed)', 
         'sym_score': 0, 'sym_attempts': 0, 'app_mode': '🔢 Number Series',
-        'sym_col_idx': 0, 'sym_round_scores': [], 'sym_columns': [], 'sym_round_times': []
+        'sym_col_idx': 0, 'sym_round_scores': [], 'sym_columns': [], 'sym_round_times': [],
+        'kohs_image': None, 'timer_id_kohs': str(time.time()) # เพิ่ม State สำหรับ Kohs
     })
 
 def get_new_ns_question():
@@ -219,7 +274,6 @@ def get_new_ns_question():
     seq, ans, logic = random.choice(funcs)()
     st.session_state.update({'ns_seq': seq, 'ns_ans': ans, 'ns_logic': logic, 'ns_show_ans': False, 'ns_feedback': None, 'timer_id_ns': str(time.time())})
 
-# สัญลักษณ์คลาสสิก ดำ-เทา
 SYMBOLS = ['★', '☺\uFE0E', '✌\uFE0E', '▲', '✈\uFE0E', '⌘', '◆', '☠\uFE0E', '⬤']
 
 def init_symbol_test():
@@ -231,9 +285,7 @@ def init_symbol_test():
             seq.append(random.choice(choices))
         sym_cols.append(seq)
 
-    # แก้ไขให้สุ่มค่าสัญลักษณ์ไม่ให้ซ้ำกันเลย (Unique values)
     unique_values = random.sample(range(3, 26), len(SYMBOLS))
-
     st.session_state.update({
         'sym_map': {sym: val for sym, val in zip(SYMBOLS, unique_values)},
         'sym_columns': sym_cols,
@@ -246,13 +298,15 @@ def init_symbol_test():
 
 if 'ns_seq' not in st.session_state: get_new_ns_question()
 if not st.session_state.sym_columns: init_symbol_test()
+if st.session_state.kohs_image is None: st.session_state.kohs_image = generate_complex_pattern()
 
 # ==========================================
 # 4. Sidebar (Menu, Settings & Stats)
 # ==========================================
 with st.sidebar:
     st.title("🎯 เมนูฝึกซ้อม")
-    st.session_state.app_mode = st.radio("เลือกโหมด:", ["🔢 Number Series", "🔣 Symbol Addition"])
+    # เพิ่มเมนู Kohs Block ตรงนี้
+    st.session_state.app_mode = st.radio("เลือกโหมด:", ["🔢 Number Series", "🔣 Symbol Addition", "🧊 Kohs Block Design"])
     st.divider()
     
     st.header("⚙️ ตั้งค่าเวลา")
@@ -268,19 +322,20 @@ with st.sidebar:
         st.metric("ความแม่นยำ", f"{acc:.1f}%")
         if st.button("🗑️ รีเซ็ตสถิติ", use_container_width=True):
             st.session_state.ns_score = 0; st.session_state.ns_attempts = 0; st.rerun()
-    else:
+    elif st.session_state.app_mode == "🔣 Symbol Addition":
         c1, c2 = st.columns(2)
         c1.metric("คะแนน (ข้อ)", st.session_state.sym_score)
         c2.metric("ทำไปแล้ว (ด่าน)", st.session_state.sym_attempts)
         c3, c4 = st.columns(2)
         acc = (st.session_state.sym_score / max(1, st.session_state.sym_attempts*16)) * 100
         c3.metric("ความแม่นยำรวม", f"{acc:.1f}%")
-        # แสดงสถิติเวลาเฉลี่ย
         avg_time = sum(st.session_state.sym_round_times) / max(1, len(st.session_state.sym_round_times))
         c4.metric("เวลาเฉลี่ย/ด่าน", f"{avg_time:.1f} วิ")
         if st.button("🗑️ รีเซ็ตสถิติ", use_container_width=True):
             st.session_state.sym_score = 0; st.session_state.sym_attempts = 0; 
             st.session_state.sym_round_times = []; st.rerun()
+    else:
+        st.info("โหมด Kohs Block เน้นการฝึกฝนจับเวลาด้วยตัวเองครับ")
 
 # ==========================================
 # 5. Main App Logic (Number Series)
@@ -352,7 +407,6 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
                     user_inputs.append(ans)
                     
                 if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
-                    # คำนวณเวลาที่ใช้ไป (capped ไม่ให้เกินเวลาที่ตั้งไว้)
                     elapsed = min(time.time() - float(st.session_state.timer_id_sym), timer_duration)
                     st.session_state.sym_last_elapsed = elapsed
                     st.session_state.sym_submitted = True
@@ -402,3 +456,28 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             st.balloons()
             st.success(f"🎉 ยอดเยี่ยม! จบการทดสอบทั้ง 8 คอลัมน์\n\n**คะแนนรวมของคุณคือ: {sum(st.session_state.sym_round_scores)} / 128 คะแนน**")
             st.button("🔄 สร้างข้อสอบชุดใหม่ (เปลี่ยนค่าสัญลักษณ์)", on_click=init_symbol_test, type="primary", use_container_width=True)
+
+# ==========================================
+# 7. Main App Logic (Kohs Block Design)
+# ==========================================
+elif st.session_state.app_mode == "🧊 Kohs Block Design":
+    st.title("🧊 Kohs Block Design Gym")
+    st.markdown("ฝึกต่อบล็อก 9 ชิ้น (3x3) แบบเน้นลวดลายทแยง เพื่อเตรียมความพร้อม")
+    st.divider()
+
+    col1, col2 = st.columns([3, 2])
+
+    with col1:
+        if st.button("🔄 สุ่มโจทย์ใหม่ (Generate New)", type="primary", use_container_width=True):
+            st.session_state.kohs_image = generate_complex_pattern()
+            # รีเซ็ตเวลาอัตโนมัติเมื่อกดสุ่มใหม่
+            st.session_state.timer_id_kohs = str(time.time())
+
+        if st.session_state.kohs_image:
+            # ใช้ st.image แสดงผลภาพที่ถูก Generate มาจาก PIL ได้โดยตรง
+            st.image(st.session_state.kohs_image, caption="💡 ทริค: ลองหมุน iPad 45 องศาเพื่อฝึกมองแนวเพชร (Diamond Orientation) แบบข้อสอบจริง", use_container_width=False)
+
+    with col2:
+        st.markdown("### ⏱️ จับเวลาการต่อลูกเต๋า")
+        # เรียกใช้นาฬิกาจับเวลาตัวเดียวกับโหมดอื่นๆ
+        components.html(render_timer(timer_duration, st.session_state.timer_id_kohs, auto_start=False, is_sym_mode=False), height=150)
