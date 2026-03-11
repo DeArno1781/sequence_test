@@ -257,7 +257,8 @@ if 'ns_score' not in st.session_state:
         'sym_score': 0, 'sym_attempts': 0, 'app_mode': '🔢 Number Series',
         'sym_col_idx': 0, 'sym_round_scores': [], 'sym_columns': [], 'sym_round_times': [],
         'kohs_pattern': generate_random_faces(), 'timer_id_kohs': str(time.time()),
-        'kohs_current_rot': False # เก็บสถานะว่ารูปปัจจุบันเอียงหรือตรง
+        'kohs_current_rot': False, 
+        'sym_started': False # เก็บสถานะว่าผู้ใช้กดเริ่มหรือยังในโหมด Symbol
     })
 
 def get_new_ns_question():
@@ -293,6 +294,7 @@ def init_symbol_test():
         'sym_round_scores': [],
         'sym_round_times': [],
         'sym_submitted': False, 
+        'sym_started': False, # เริ่มใหม่ก็ต้องรอกดเริ่มใหม่
         'timer_id_sym': str(time.time())
     })
 
@@ -391,25 +393,36 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
     
     with col_timer:
         if not st.session_state.sym_submitted:
-            components.html(render_timer(timer_duration, st.session_state.timer_id_sym, auto_start=False, is_sym_mode=True), height=95)
+            if st.session_state.get('sym_started', False):
+                # ถ้ากดเริ่มแล้ว ค่อยรัน JS แบบ Auto start
+                components.html(render_timer(timer_duration, st.session_state.timer_id_sym, auto_start=True, is_sym_mode=True), height=95)
+            else:
+                st.info("⏳ พร้อมแล้วกดปุ่มด้านล่างเพื่อเริ่มจับเวลา")
 
     if not st.session_state.sym_submitted:
-        with st.container(height=300):
-            with st.form("sym_form", clear_on_submit=False):
-                user_inputs = []
-                current_seq = st.session_state.sym_columns[st.session_state.sym_col_idx]
-                for i, sym in enumerate(current_seq):
-                    r1, r2 = st.columns([1, 6])
-                    r1.markdown(f"<div style='font-size:20px;text-align:right;color:#333;'>{sym}</div>", unsafe_allow_html=True)
-                    ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id_sym}_{i}", label_visibility="collapsed", autocomplete="off")
-                    user_inputs.append(ans)
-                    
-                if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
-                    elapsed = min(time.time() - float(st.session_state.timer_id_sym), timer_duration)
-                    st.session_state.sym_last_elapsed = elapsed
-                    st.session_state.sym_submitted = True
-                    st.session_state.user_inputs = user_inputs
-                    st.rerun()
+        if not st.session_state.get('sym_started', False):
+            # ปุ่มเริ่มของ Streamlit ขวางไว้ก่อน
+            if st.button("▶ เริ่มทำด่านนี้ (Start)", type="primary", use_container_width=True):
+                st.session_state.sym_started = True
+                st.session_state.timer_id_sym = str(time.time()) # รีเซ็ตเวลา Python ให้เริ่มนับตอนนี้!
+                st.rerun()
+        else:
+            with st.container(height=300):
+                with st.form("sym_form", clear_on_submit=False):
+                    user_inputs = []
+                    current_seq = st.session_state.sym_columns[st.session_state.sym_col_idx]
+                    for i, sym in enumerate(current_seq):
+                        r1, r2 = st.columns([1, 6])
+                        r1.markdown(f"<div style='font-size:20px;text-align:right;color:#333;'>{sym}</div>", unsafe_allow_html=True)
+                        ans = r2.text_input("ยอด", key=f"s_{st.session_state.timer_id_sym}_{i}", label_visibility="collapsed", autocomplete="off")
+                        user_inputs.append(ans)
+                        
+                    if st.form_submit_button("ส่งคำตอบเพื่อตรวจ ⏎", use_container_width=True):
+                        elapsed = min(time.time() - float(st.session_state.timer_id_sym), timer_duration)
+                        st.session_state.sym_last_elapsed = elapsed
+                        st.session_state.sym_submitted = True
+                        st.session_state.user_inputs = user_inputs
+                        st.rerun()
 
     if st.session_state.sym_submitted:
         st.header(f"📊 ตรวจคำตอบ (ด่านนี้ใช้เวลาไป {st.session_state.sym_last_elapsed:.1f} วินาที)")
@@ -448,6 +461,7 @@ elif st.session_state.app_mode == "🔣 Symbol Addition":
             def go_next_col():
                 st.session_state.sym_col_idx += 1
                 st.session_state.sym_submitted = False
+                st.session_state.sym_started = False # รีเซ็ตปุ่มเริ่มเพื่อให้กดเริ่มใหม่คอลัมน์ถัดไป
                 st.session_state.timer_id_sym = str(time.time())
             st.button(f"▶ ไปคอลัมน์ที่ {st.session_state.sym_col_idx + 2}", on_click=go_next_col, type="primary", use_container_width=True)
         else:
